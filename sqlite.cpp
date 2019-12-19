@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <sstream>
+#include <vector>
 
 // class InputBuffer {
 // 	std::string buffer;
@@ -29,7 +31,9 @@ enum StatementType {
 enum PrepareResult {
 	PrepareSuccess,
 	PrepareUnrecognized,
-	PrepareSyntaxError
+	PrepareSyntaxError,
+	PrepareStringTooLong,
+	PrepareNegativeId
 };
 
 enum ExecuteResult {
@@ -53,13 +57,13 @@ struct Row {
 		std::cout << "(" << id << ", "<< username << ", " << email << ")\n";
 	}
 
-	void serialize(void *dest) {
+	void serialize(char *dest) {
 		memcpy(dest + ID_OFFSET, &(id), ID_SIZE);
 		memcpy(dest + USERNAME_OFFSET, &(username), USERNAME_SIZE);
 		memcpy(dest + EMAIL_OFFSET, &(email), EMAIL_SIZE);
 	}
 
-	void deserialize(void *src) {
+	void deserialize(char *src) {
 		memcpy(&(id), src + ID_OFFSET, ID_SIZE);
 		memcpy(&(username), src + USERNAME_OFFSET, USERNAME_SIZE);
 		memcpy(&(email), src + EMAIL_OFFSET, EMAIL_SIZE);
@@ -75,7 +79,7 @@ class Table {
 	static constexpr uint32_t MAX_PAGES = 100;
 	static constexpr uint32_t ROWS_PER_PAGE = PAGE_SIZE / Row::rowSize();
 	uint32_t num_rows;
-	void *pages[PAGE_SIZE];
+	char *pages[MAX_PAGES];
 
 public:
 	Table() {
@@ -86,15 +90,15 @@ public:
 	~Table() {
 		for (int i = 0; i < MAX_PAGES; ++i) {
 			if (pages[i])
-				free(pages[i]);
+				delete pages[i];
 		}
 	}
 
-	void *slot(const uint32_t row_num) {
+	char *slot(const uint32_t row_num) {
 		uint32_t page_num = row_num / ROWS_PER_PAGE;
-		void *page = pages[page_num];
+		char *page = pages[page_num];
 		if (page == nullptr) {
-			page = pages[page_num] = malloc(PAGE_SIZE);
+			page = pages[page_num] = new char[PAGE_SIZE];
 		}
 		uint32_t rowOffset = row_num % ROWS_PER_PAGE;
 		uint32_t byteOffset = rowOffset * Row::rowSize();
@@ -132,12 +136,49 @@ class Statement {
 	Row rowToInsert;
 public:
 	Statement() {}
+
+	PrepareResult prepareInsert(std::string str) {
+		std::stringstream ss(str);
+		std::string token;
+		std::vector<std::string> tokens;
+		tokens.reserve(4);
+		std::string keyword, id, username, email;
+		while (getline(ss, token, ' ')) {
+			tokens.push_back(token);
+		}
+		if (tokens.size() != 4)
+			return PrepareSyntaxError;
+
+		try {
+			rowToInsert.id = stoi(tokens[1]);
+		} catch(...) {
+			return PrepareSyntaxError;
+		}
+
+		if (stoi(tokens[1]) < 0) {
+			return PrepareNegativeId;
+		}
+
+		if (tokens[2].length() < 32) {
+			std::cout << tokens[2];
+			strcpy(rowToInsert.username, tokens[2].c_str());
+		} else {
+			return PrepareStringTooLong;
+		}
+
+		if (tokens[3].length() < 64) {
+			strcpy(rowToInsert.email, tokens[3].c_str());
+		} else {
+			return PrepareStringTooLong;
+		}
+
+		return PrepareSuccess;
+	}
+
 	PrepareResult prepareStatement(std::string st) {
 		if (strncmp(st.c_str(), "insert", 6) == 0) {
 			type = Insert;
-			int args = sscanf(st.c_str(), "insert %d %s %s", &rowToInsert.id, rowToInsert.username, rowToInsert.email);
-			if (args < 3) return PrepareSyntaxError;
-			return PrepareSuccess;
+			return prepareInsert(st);
 		}
 		if (st == "select") {
 			type = Select;
@@ -164,6 +205,7 @@ public:
 			r.deserialize(t->slot(i));
 			r.print();
 		}
+		return ExecuteSucess;
 	}
 
 	ExecuteResult executeStatement(Table *t) {
@@ -202,7 +244,13 @@ int main(int argc, char *argv[]) {
 				break;
 			case PrepareSyntaxError:
 				std::cout << "Syntax error. Could not parse statement.\n";
-				break;
+				continue;;
+			case PrepareStringTooLong:
+				std::cout << "String too long\n";
+				continue;;
+			case PrepareNegativeId:
+				std::cout << "Negative Id not allowed!\n";
+				continue;
 			case PrepareUnrecognized:
 				std::cout << "Unrecognized Statement in " << input << std::endl;
 				continue;
