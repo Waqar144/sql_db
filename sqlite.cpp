@@ -167,39 +167,87 @@ struct Row {
 	}
 };
 
+//Forward declaration
+class Table;
+
+/***************
+ CURSOR CLASS
+***************/
+struct Cursor {
+	uint32_t rowNum;
+	bool endOfTable;
+	Table *table;
+
+	char *value();
+	void advance();
+};
+
+/************
+ TABLE CLASS
+************/
 class Table {
 	static constexpr uint32_t ROWS_PER_PAGE = PAGE_SIZE / Row::rowSize();
 	uint32_t numRows;
-	Pager pager;
+	Pager *pager;
 
 public:
 	Table() {
+		pager = new Pager;
 	}
 	~Table() {
+		delete pager;
 	}
 
 	void dbOpen(std::string filename) {
-		pager._open(filename);
-		numRows = pager.getFileLength() / Row::rowSize();
+		pager->_open(filename);
+		numRows = pager->getFileLength() / Row::rowSize();
+	}
+
+	inline uint32_t getNumRows() {
+		return numRows; 
+	}
+
+	inline uint32_t getRowsPerPage() {
+		return ROWS_PER_PAGE;
+	}
+
+	inline Pager* getPager() {
+		return pager;
+	}
+
+	Cursor *tableStart() {
+		Cursor *c = new Cursor;
+		c->table = this;
+		c->rowNum = 0;
+		c->endOfTable = (numRows == 0);
+		return c;
+	}
+
+	Cursor *tableEnd() {
+		Cursor *c = new Cursor;
+		c->table = this;
+		c->rowNum = numRows;
+		c->endOfTable = true;
+		return c;
 	}
 
 	void dbClose() {
 		const uint32_t numOfFullPages = numRows / ROWS_PER_PAGE;
 		for (uint32_t i = 0; i < numOfFullPages; ++i) {
-			if (pager.getPage(i) == nullptr)
+			if (pager->getPage(i) == nullptr)
 				continue;
-			pager._flush(i, PAGE_SIZE);
+			pager->_flush(i, PAGE_SIZE);
 		}
 
 		uint32_t numOFAdditionalRows = numRows % ROWS_PER_PAGE;
 		if (numOFAdditionalRows > 0) {
      		uint32_t pageNum = numOfFullPages;
-     		if (pager.getPage(pageNum) != nullptr) {
-         		pager._flush(pageNum, numOFAdditionalRows * Row::rowSize());
+     		if (pager->getPage(pageNum) != nullptr) {
+         		pager->_flush(pageNum, numOFAdditionalRows * Row::rowSize());
 			}
 		}
 
-		int result = pager._close();
+		int result = pager->_close();
 		if (result == -1) {
 			std::cout << "Error closing file. Exiting..." << std::endl;
 			exit(EXIT_FAILURE);
@@ -208,7 +256,7 @@ public:
 
 	char *slot(const uint32_t rowNum) {
 		uint32_t pageNum = rowNum / ROWS_PER_PAGE;
-		char *page = pager.getPage(pageNum);
+		char *page = pager->getPage(pageNum);
 		if (page == nullptr) {
 			std::cout << "[Table::slot()] Failed to get page -- Unknown error" << std::endl;
 		}
@@ -229,6 +277,26 @@ public:
 		return ROWS_PER_PAGE * MAX_PAGES;
 	}
 };
+
+
+char* Cursor::value(){
+		uint32_t pageNum = rowNum / table->getRowsPerPage();
+	char *page = table->getPager()->getPage(pageNum);
+	uint32_t rowOffset = rowNum % table->getRowsPerPage();
+	uint32_t byteOffset = rowOffset * Row::rowSize();
+	return page + byteOffset;
+}
+void Cursor::advance() {
+		++rowNum;
+		if (rowNum >= table->getNumRows()) {
+			endOfTable = true;
+		}
+	}
+
+
+/**************
+GLOBAL FUNCTIONS
+**************/
 
 inline static void printPrompt() {
 	std::cout << "db > ";
@@ -304,19 +372,24 @@ public:
 		if (t->rows() >= t->maxRows())
 			return ExecuteTableFull;
 
-		Row *row = &rowToInsert;
-		row->serialize(t->slot(t->rows()));
+		Cursor *c = t->tableEnd();
+		rowToInsert.serialize(c->value());
+//		row->serialize(t->slot(t->rows()));
 		t->incrementRowNum();
+		delete c;
 
 		return ExecuteSucess;
 	}
 
 	ExecuteResult executeSelect(Table *t) {
 		Row r;
+		Cursor *c = t->tableStart();
 		for (int i = 0; i < t->rows(); ++i) {
-			r.deserialize(t->slot(i));
+			r.deserialize(c->value());
 			r.print();
+			c->advance();
 		}
+		delete c;
 		return ExecuteSucess;
 	}
 
