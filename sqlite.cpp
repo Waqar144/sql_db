@@ -330,6 +330,7 @@ public:
 		if (tokens.size() != 4)
 			return PrepareSyntaxError;
 
+        std::string cpp;
 		try {
 			rowToInsert.id = stoi(tokens[1]);
 		} catch(...) {
@@ -423,7 +424,7 @@ int main(int argc, char *argv[]) {
 				break;
 				case MetaCommandResult::CommandUnrecognized:
 				std::cout << "Unrecognized command!\n";
-				continue;;
+                continue;
 			}
 		}
 
@@ -434,10 +435,10 @@ int main(int argc, char *argv[]) {
 				break;
 			case PrepareSyntaxError:
 				std::cout << "Syntax error. Could not parse statement.\n";
-				continue;;
+                continue;
 			case PrepareStringTooLong:
 				std::cout << "String too long\n";
-				continue;;
+                continue;
 			case PrepareNegativeId:
 				std::cout << "Negative Id not allowed!\n";
 				continue;
