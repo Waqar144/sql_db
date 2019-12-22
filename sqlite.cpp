@@ -239,16 +239,19 @@ char* leaf_node_value(char* node, uint32_t cell_num) {
   return leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
 }
 
-void initialize_leaf_node(char* node) { *leaf_node_num_cells(node) = 0; }
-
 void get_node_type(char *node) {
 	uint8_t value = *((uint8_t*)(node + NODE_TYPE_OFFSET));
 	return (NodeType)value;
 }
 
-void set_node_type(char *node) {
+void set_node_type(char *node, NodeType type) {
 	uint8_t value = type;
 	*((uint8_t*)(node + NODE_TYPE_OFFSET)) = value;
+}
+
+void initialize_leaf_node(char* node) {
+	set_node_type(node, NodeType::NodeLeaf);
+	*leaf_node_num_cells(node) = 0;
 }
 
 void print_constants() {
@@ -606,6 +609,9 @@ int main(int argc, char *argv[]) {
 		switch(st.executeStatement(table)) {
 			case ExecuteSucess:
 				std::cout << "Executed\n";
+				break;
+			case ExecuteDuplicateKey:
+				std::cout << "Duplicate keys not allowed\n";
 				break;
 			case ExecuteTableFull:
 				break;
