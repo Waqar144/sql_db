@@ -239,7 +239,7 @@ char* leaf_node_value(char* node, uint32_t cell_num) {
   return leaf_node_cell(node, cell_num) + LEAF_NODE_KEY_SIZE;
 }
 
-void get_node_type(char *node) {
+NodeType get_node_type(char *node) {
 	uint8_t value = *((uint8_t*)(node + NODE_TYPE_OFFSET));
 	return (NodeType)value;
 }
@@ -344,8 +344,8 @@ public:
 	Cursor *tableFind(uint32_t key) {
 		char *rootNode = pager->getPage(rootPageNum);
 
-		if (get_node_type(rootNode) == NODE_LEAF) {
-			return leaf_node_find(this, rootPageNum, key);
+		if (get_node_type(rootNode) == NodeType::NodeLeaf) {
+			return leafNodeFind(rootPageNum, key);
 		} else {
 			std::cout << "Searching internal nodes not implemented yet.\n";
 		}
@@ -370,6 +370,35 @@ public:
 		value->serialize(leaf_node_value(node, c->cellNum));
 	}
 
+	Cursor *leafNodeFind(uint32_t pageNum, uint32_t key) {
+	char *node = pager->getPage(pageNum);
+	uint32_t numOfCells = *leaf_node_num_cells(node);
+
+	Cursor *c = new Cursor;
+	c->table = this;
+	c->pageNum = pageNum;
+
+	//Binary search
+	uint32_t minIndex = 0;
+	uint32_t onePastMaxIndex = numOfCells;
+	while (onePastMaxIndex != minIndex) {
+		uint32_t index = (onePastMaxIndex + minIndex) / 2;
+		uint32_t keyAtIndex = *(leaf_node_key(node, index));
+		if (key == keyAtIndex) {
+			c->cellNum = index;
+			return c;
+		}
+		if (key < keyAtIndex) {
+			onePastMaxIndex = index;
+		} else {
+			minIndex = index + 1;
+		}
+	}
+
+	c->cellNum = minIndex;
+	return c;
+}
+
 	void dbClose() {
 		for (uint32_t i = 0; i < pager->getNumOfPages(); ++i) {
 			if (pager->getPage(i) == nullptr)
@@ -393,35 +422,6 @@ public:
 	}
 
 };
-
-Cursor *leaf_node_find(Table *t, uint32_t pageNum, uint32_t key) {
-	char *node = t->getPager()->getPage(pageNum);
-	uint32_t numOfCells = *leaf_node_num_cells(node);
-
-	Cursor *c = new Cursor;
-	c->table = t;
-	c->pageNum = pageNum;
-
-	//Binary search
-	uint32_t minIndex = 0;
-	uint32_t onePastMaxIndex = numOfCells;
-	while (onePastMaxIndex != minIndex) {
-		uint32_t index = (onePastMaxIndex + minIndex) / 2;
-		uint32_t keyAtIndex = *(leaf_node_key(node, index));
-		if (key == keyAtIndex) {
-			c->cellNum = index;
-			return c;
-		}
-		if (key < keyAtIndex) {
-			onePastMaxIndex = index;
-		} else {
-			minIndex = index + 1;
-		}
-	}
-
-	c->cellNum = minIndex;
-	return c;
-}
 
 
 char* Cursor::value(){
@@ -525,8 +525,8 @@ public:
 			return ExecuteTableFull;
 		}
 
-		uint32_t keyToInsert = rowToInsert->id;
-		Cursor *c = t->find(keyToInsert);
+		uint32_t keyToInsert = rowToInsert.id;
+		Cursor *c = t->tableFind(keyToInsert);
 
 		if (c->cellNum < numOfCells) {
 			uint32_t keyAtIndex = *leaf_node_key(node, c->cellNum);
