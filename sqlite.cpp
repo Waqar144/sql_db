@@ -241,6 +241,16 @@ char* leaf_node_value(char* node, uint32_t cell_num) {
 
 void initialize_leaf_node(char* node) { *leaf_node_num_cells(node) = 0; }
 
+void get_node_type(char *node) {
+	uint8_t value = *((uint8_t*)(node + NODE_TYPE_OFFSET));
+	return (NodeType)value;
+}
+
+void set_node_type(char *node) {
+	uint8_t value = type;
+	*((uint8_t*)(node + NODE_TYPE_OFFSET)) = value;
+}
+
 void print_constants() {
 	std::cout << "ROW_SIZE: " << Row::ROW_SIZE << std::endl;
 	std::cout << "COMMON_NODE_HEADER_SIZE: " << COMMON_NODE_HEADER_SIZE << std::endl;
@@ -325,16 +335,17 @@ public:
 		return c;
 	}
 
-	Cursor *tableEnd() {
-		Cursor *c = new Cursor;
-		c->table = this;
-		c->pageNum = rootPageNum;
+	//Return the position of a given key.
+	//In case the key is not found, return the
+	//position where it should be inserted
+	Cursor *tableFind(uint32_t key) {
+		char *rootNode = pager->getPage(rootPageNum);
 
-		char *node = pager->getPage(rootPageNum);
-		c->cellNum = *leaf_node_num_cells(node);
-
-		c->endOfTable = true;
-		return c;
+		if (get_node_type(rootNode) == NODE_LEAF) {
+			return leaf_node_find(this, rootPageNum, key);
+		} else {
+			std::cout << "Searching internal nodes not implemented yet.\n";
+		}
 	}
 
 	void leafNodeInsert(Cursor *c, uint32_t key, Row *value) {
@@ -379,6 +390,35 @@ public:
 	}
 
 };
+
+Cursor *leaf_node_find(Table *t, uint32_t pageNum, uint32_t key) {
+	char *node = t->getPager()->getPage(pageNum);
+	uint32_t numOfCells = *leaf_node_num_cells(node);
+
+	Cursor *c = new Cursor;
+	c->table = t;
+	c->pageNum = pageNum;
+
+	//Binary search
+	uint32_t minIndex = 0;
+	uint32_t onePastMaxIndex = numOfCells;
+	while (onePastMaxIndex != minIndex) {
+		uint32_t index = (onePastMaxIndex + minIndex) / 2;
+		uint32_t keyAtIndex = *(leaf_node_key(node, index));
+		if (key == keyAtIndex) {
+			c->cellNum = index;
+			return c;
+		}
+		if (key < keyAtIndex) {
+			onePastMaxIndex = index;
+		} else {
+			minIndex = index + 1;
+		}
+	}
+
+	c->cellNum = minIndex;
+	return c;
+}
 
 
 char* Cursor::value(){
