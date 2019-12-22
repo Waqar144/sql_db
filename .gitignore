@@ -3,3 +3,4 @@ CMakeLists.txt.*
 *.db
 *.out
 .vscode/settings.json
+.vscode/*
