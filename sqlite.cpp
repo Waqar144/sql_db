@@ -32,7 +32,8 @@ enum PrepareResult {
 
 enum ExecuteResult {
 	ExecuteSucess,
-	ExecuteTableFull
+	ExecuteTableFull,
+	ExecuteDuplicateKey
 };
 
 /*********
@@ -476,12 +477,21 @@ public:
 
 	ExecuteResult executeInsert(Table *t) {
 		char *node = t->getPager()->getPage(t->getRootPageNum());
-		if ((*leaf_node_num_cells(node) >= LEAF_NODE_MAX_CELLS)) {
+		uint32_t numOfCells = *(leaf_node_num_cells(node));
+		if (numOfCells >= LEAF_NODE_MAX_CELLS) {
 			return ExecuteTableFull;
 		}
 
+		uint32_t keyToInsert = rowToInsert->id;
+		Cursor *c = t->find(keyToInsert);
 
-		Cursor *c = t->tableEnd();
+		if (c->cellNum < numOfCells) {
+			uint32_t keyAtIndex = *leaf_node_key(node, c->cellNum);
+			if (keyAtIndex == keyToInsert) {
+				return ExecuteDuplicateKey;
+			}
+		}
+
 		t->leafNodeInsert(c, rowToInsert.id, &rowToInsert);
 		delete c;
 
