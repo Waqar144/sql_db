@@ -7,8 +7,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static constexpr uint32_t PAGE_SIZE = 4096;
-static constexpr uint32_t MAX_PAGES = 100;
+#include "pager.hpp"
+
+// static constexpr uint32_t PAGE_SIZE = 4096;
+// static constexpr uint32_t MAX_PAGES = 100;
 
 enum MetaCommandResult {
 	CommandSuccess,
@@ -36,117 +38,7 @@ enum ExecuteResult {
 	ExecuteDuplicateKey
 };
 
-/*********
- PAGER CLASS
- Pager class contains the memory we read/write to.
- We request the pager to give us a page(size: 4096 bytes)
- and it returns that page. It will first look in the cache,
- if it doesn't find the page there, it will get that page
- from the disk
-*********/
-class Pager{
-	int fileDescriptor;
-	uint32_t fileLength;
-	char *pages[MAX_PAGES];
-	uint32_t numOfPages;
 
-public:
-	Pager() {
-		for (int i=0; i < MAX_PAGES; ++i) {
-			pages[i] = nullptr;
-		}
-		fileLength = 0;
-	}
-
-	~Pager() {
-		for (int i = 0; i < MAX_PAGES; ++i) {
-			if (pages[i]) {
-				delete[] pages[i];
-				pages[i] = nullptr;
-			}
-		}
-	}
-
-	inline uint32_t getNumOfPages() {
-		return numOfPages;
-	}
-
-	void _open(std::string filename) {
-		fileDescriptor = open(filename.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-		if (fileDescriptor == -1) {
-			std::cout << "Unable to open file\n";
-		}
-
-		fileLength = lseek(fileDescriptor, 0, SEEK_END);
-		numOfPages = fileLength / PAGE_SIZE;
-
-		if (fileLength % PAGE_SIZE != 0) {
-			std::cout << "DB file is corrupt!\n";
-		}
-	}
-
-	//return the file length
-	inline uint32_t getFileLength() {
-		return fileLength;
-	}
-
-	/**
-	 * @brief returns the page at pageNum
-	 */
-	char *getPage(uint32_t pageNum) {
-		if (pageNum > MAX_PAGES) {
-			std::cout << "This page number is out of bounds.\n";
-		}
-
-		char *page = nullptr;
-		if (pages[pageNum] == nullptr) {
-			page = new char[PAGE_SIZE];
-			uint32_t numOfPages = fileLength / PAGE_SIZE;
-
-			//incomplete page
-			if(fileLength % PAGE_SIZE != 0) {
-				numOfPages += 1;
-			}
-
-			if (pageNum <= numOfPages) {
-				lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
-				ssize_t numOfBytesRead = read(fileDescriptor, page, PAGE_SIZE);
-				if (numOfBytesRead == -1) {
-					std::cout << "Error reading file\n";
-					exit(EXIT_FAILURE);
-				}
-			}
-			pages[pageNum] = page;
-			if (pageNum >= numOfPages) {
-				numOfPages = pageNum + 1;
-			}
-		}
-		return pages[pageNum];
-	}
-
-	void _flush(uint32_t pageNum) {
-		if (pages[pageNum] == nullptr) {
-			std::cout << "Tried to flush null page. Exiting..." << std::endl;
-			exit(EXIT_FAILURE);
-		}
-
-		off_t offset = lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
-		if (offset == -1) {
-			std::cout << "Error seeking file. Exiting... \n";
-			exit(EXIT_FAILURE);
-		}
-
-		ssize_t numOfBytesWritten = write(fileDescriptor, pages[pageNum], PAGE_SIZE);
-		if (numOfBytesWritten == -1) {
-			std::cout << "Error writing to file. Exiting...\n";
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	int _close() {
-		return close(fileDescriptor);
-	}
-};
 
 struct Row {
 	uint32_t id;
