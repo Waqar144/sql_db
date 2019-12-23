@@ -1,3 +1,6 @@
+#ifndef PAGER_H
+#define PAGER_H
+
 #include <stdint.h>
 #include <string>
 
@@ -36,3 +39,5 @@ public:
 		return fileLength;
 	}
 };
+
+#endif
