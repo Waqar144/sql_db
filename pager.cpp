@@ -31,6 +31,8 @@ void Pager::_open(std::string filename) {
 	fileLength = lseek(fileDescriptor, 0, SEEK_END);
 	numOfPages = fileLength / PAGE_SIZE;
 
+	std::cout << "File length: " << fileLength << std::endl;
+
 	if (fileLength % PAGE_SIZE != 0) {
 		std::cout << "DB file is corrupt!\n";
 	}

@@ -60,18 +60,18 @@ PrepareResult Statement::prepareStatement(std::string st) {
 }
 
 ExecuteResult Statement::executeInsert(Table *t) {
-	char *node = t->getPager()->getPage(t->getRootPageNum());
-	uint32_t numOfCells = *(leaf_node_num_cells(node));
-
 	uint32_t keyToInsert = rowToInsert.id;
 	Cursor *c = t->tableFind(keyToInsert);
 
+	char *node = t->getPager()->getPage(c->pageNum);
+	uint32_t numOfCells = *(leaf_node_num_cells(node));
+
 	if (c->cellNum < numOfCells) {
 		uint32_t keyAtIndex = *leaf_node_key(node, c->cellNum);
-	if (keyAtIndex == keyToInsert) {
-		return ExecuteDuplicateKey;
+		if (keyAtIndex == keyToInsert) {
+			return ExecuteDuplicateKey;
+		}
 	}
-}
 
 	t->leafNodeInsert(c, rowToInsert.id, &rowToInsert);
 	delete c;

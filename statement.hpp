@@ -23,9 +23,7 @@ enum PrepareResult {
 
 enum StatementType {
 	Insert,
-	Select,
-	Delete,
-	Update
+	Select
 };
 
 class Statement {
