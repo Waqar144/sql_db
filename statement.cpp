@@ -62,9 +62,6 @@ PrepareResult Statement::prepareStatement(std::string st) {
 ExecuteResult Statement::executeInsert(Table *t) {
 	char *node = t->getPager()->getPage(t->getRootPageNum());
 	uint32_t numOfCells = *(leaf_node_num_cells(node));
-	if (numOfCells >= LEAF_NODE_MAX_CELLS) {
-		return ExecuteTableFull;
-	}
 
 	uint32_t keyToInsert = rowToInsert.id;
 	Cursor *c = t->tableFind(keyToInsert);

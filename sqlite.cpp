@@ -51,7 +51,7 @@ MetaCommandResult runCommand(std::string input, Table *t) {
 		return MetaCommandResult::CommandSuccess;
 	} else if (input == ".btree") {
 		std::cout<<"Tree: " << std::endl;
-		print_leaf_node(t->getPager()->getPage(0));
+		t->print(0, 0);
 		return MetaCommandResult::CommandSuccess;
 	} else {
 		return MetaCommandResult::CommandUnrecognized;

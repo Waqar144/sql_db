@@ -38,11 +38,17 @@ public:
 	//position where it should be inserted
 	Cursor *tableFind(uint32_t key);
 
+	void createNewRoot(uint32_t rightChildPageNum);
+
 	void leafNodeInsert(Cursor *c, uint32_t key, Row *value);
+
+	void leafNodeSplitAndInsert(Cursor *c, uint32_t key, Row *value);
 
 	Cursor *leafNodeFind(uint32_t pageNum, uint32_t key);
 
 	void dbClose();
+
+	void print(uint32_t page, uint32_t indentationLevel);
 
 	inline constexpr uint32_t rows() const {
 		return numRows;

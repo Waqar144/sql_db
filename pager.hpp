@@ -31,6 +31,7 @@ public:
 
 	void _open(std::string filename);
 	char *getPage(uint32_t pageNum);
+	uint32_t getUnusedPageNum();
 	void _flush(uint32_t pageNum);
 	int _close();
 

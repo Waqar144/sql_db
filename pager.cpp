@@ -70,6 +70,10 @@ char *Pager::getPage(uint32_t pageNum) {
 	return pages[pageNum];
 }
 
+uint32_t Pager::getUnusedPageNum() {
+	return numOfPages;
+}
+
 void Pager::_flush(uint32_t pageNum) {
 	if (pages[pageNum] == nullptr) {
 		std::cout << "Tried to flush null page. Exiting..." << std::endl;
