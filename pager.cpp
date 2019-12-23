@@ -31,8 +31,6 @@ void Pager::_open(std::string filename) {
 	fileLength = lseek(fileDescriptor, 0, SEEK_END);
 	numOfPages = fileLength / PAGE_SIZE;
 
-	std::cout << "File length: " << fileLength << std::endl;
-
 	if (fileLength % PAGE_SIZE != 0) {
 		std::cout << "DB file is corrupt!\n";
 	}
@@ -44,19 +42,19 @@ void Pager::_open(std::string filename) {
 char *Pager::getPage(uint32_t pageNum) {
 	if (pageNum > MAX_PAGES) {
 		std::cout << "This page number is out of bounds.\n";
+		exit(EXIT_FAILURE);
 	}
 
-	char *page = nullptr;
 	if (pages[pageNum] == nullptr) {
-		page = new char[PAGE_SIZE];
-		uint32_t numOfPages = fileLength / PAGE_SIZE;
+		char *page = new char[PAGE_SIZE];
+		uint32_t numOfPages_ = fileLength / PAGE_SIZE;
 
 		//incomplete page
-		if(fileLength % PAGE_SIZE != 0) {
-			numOfPages += 1;
+		if(fileLength % PAGE_SIZE) {
+			numOfPages_ += 1;
 		}
 
-		if (pageNum <= numOfPages) {
+		if (pageNum <= numOfPages_) {
 			lseek(fileDescriptor, pageNum * PAGE_SIZE, SEEK_SET);
 			ssize_t numOfBytesRead = read(fileDescriptor, page, PAGE_SIZE);
 			if (numOfBytesRead == -1) {
@@ -66,7 +64,7 @@ char *Pager::getPage(uint32_t pageNum) {
 		}
 		pages[pageNum] = page;
 		if (pageNum >= numOfPages) {
-			numOfPages = pageNum + 1;
+			this->numOfPages = pageNum + 1;
 		}
 	}
 	return pages[pageNum];

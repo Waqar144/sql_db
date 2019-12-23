@@ -1,4 +1,5 @@
 #include "node.hpp"
+#include <iostream>
 
 uint32_t* leaf_node_num_cells(char* node) {
   return (uint32_t*)(node + LEAF_NODE_NUM_CELLS_OFFSET);
@@ -91,5 +92,8 @@ uint32_t get_node_max_key(char *node) {
 		return *internal_node_key(node, *internal_node_num_keys(node) - 1);
 	case NodeType::NodeLeaf:
 		return *leaf_node_key(node, *leaf_node_num_cells(node) - 1);
+  default:
+    std::cout << "UNKNOWN - get_node_max_key";
+    exit(EXIT_FAILURE);
 	}
 }

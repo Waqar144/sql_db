@@ -43,6 +43,7 @@ Cursor* Table::tableFind(uint32_t key) {
 		return leafNodeFind(rootPageNum, key);
 	} else {
 		std::cout << "Searching internal nodes not implemented yet.\n";
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -171,6 +172,7 @@ Cursor* Table::leafNodeFind(uint32_t pageNum, uint32_t key) {
 
 
 void Table::dbClose() {
+	std::cout << pager->getNumOfPages();
 	for (uint32_t i = 0; i < pager->getNumOfPages(); ++i) {
 		if (pager->getPage(i) == nullptr)
 			continue;
